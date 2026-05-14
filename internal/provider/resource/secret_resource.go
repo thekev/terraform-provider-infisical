@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	infisical "terraform-provider-infisical/internal/client"
-	modifiers "terraform-provider-infisical/internal/pkg/modifiers"
 	pkg "terraform-provider-infisical/internal/pkg/strings"
 	"time"
 
@@ -55,7 +54,7 @@ type secretResourceModel struct {
 	ValueWOVersion types.Int64     `tfsdk:"value_wo_version"`
 	WorkspaceId    types.String    `tfsdk:"workspace_id"`
 	LastUpdated    types.String    `tfsdk:"last_updated"`
-	Tags           types.List      `tfsdk:"tag_ids"`
+	Tags           types.Set       `tfsdk:"tag_ids"`
 	Metadata       types.Map       `tfsdk:"metadata"`
 	ID             types.String    `tfsdk:"id"`
 }
@@ -188,11 +187,10 @@ func (r *secretResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"last_updated": schema.StringAttribute{
 				Computed: true,
 			},
-			"tag_ids": schema.ListAttribute{
-				ElementType:   types.StringType,
-				Optional:      true,
-				Description:   "Tag ids to be attached for the secrets.",
-				PlanModifiers: []planmodifier.List{modifiers.UnorderedList()},
+			"tag_ids": schema.SetAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Description: "Tag ids to be attached for the secrets.",
 			},
 			"metadata": schema.MapAttribute{
 				ElementType: types.StringType,
@@ -418,15 +416,15 @@ func (r *secretResource) Read(ctx context.Context, req resource.ReadRequest, res
 		for _, tag := range response.Secret.Tags {
 			tagIDs = append(tagIDs, tag.ID)
 		}
-		state.Tags, diags = types.ListValueFrom(ctx, types.StringType, tagIDs)
+		state.Tags, diags = types.SetValueFrom(ctx, types.StringType, tagIDs)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
 	} else if state.Tags.IsNull() || state.Tags.IsUnknown() {
-		state.Tags = types.ListNull(types.StringType)
+		state.Tags = types.SetNull(types.StringType)
 	} else {
-		state.Tags, diags = types.ListValueFrom(ctx, types.StringType, []string{})
+		state.Tags, diags = types.SetValueFrom(ctx, types.StringType, []string{})
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
